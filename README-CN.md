@@ -110,6 +110,32 @@ docker build \
 - 若只设置 `PHANTUN_TARBALL_SHA256` 未设置 `PHANTUN_COMMIT`，构建时会解析默认分支的当前 HEAD。为避免漂移，建议同时提供两者。
 - 如需从 fork 构建，可通过 `PHANTUN_OWNER` 和 `PHANTUN_REPO` 覆盖上游来源。
 
+### 跨平台构建
+
+该 Dockerfile 默认按“构建机平台”进行构建。需要其他平台镜像时，建议使用 Docker Buildx（QEMU 模拟）：
+
+```sh
+docker buildx create --use
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t phantun-runtime:multiarch --push .
+```
+
+仅构建单一非本机平台且不推送时：
+
+```sh
+docker buildx build --platform linux/arm64 \
+  -t phantun-runtime:arm64 --load .
+```
+
+导出单平台镜像为 tar 包：
+
+```sh
+docker buildx build --platform linux/arm64 \
+  --output type=docker,dest=phantun-runtime-arm64.tar .
+```
+
+如果希望在构建器内部“真交叉编译”（不依赖 QEMU），需要自行安装 Rust 目标与对应系统工具链（默认未配置）。
+
 ## 版本策略
 
 容器版本仅反映运行时封装层的变化。phantun 的功能、参数和行为完全由上游定义。上游参数变更不会要求修改本容器实现。

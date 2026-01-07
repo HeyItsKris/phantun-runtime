@@ -110,6 +110,32 @@ Notes:
 - If you set `PHANTUN_TARBALL_SHA256` without `PHANTUN_COMMIT`, the build resolves the default-branch HEAD at build time. To avoid drift, pass both.
 - You can override the upstream with `PHANTUN_OWNER` and `PHANTUN_REPO` if you build from a fork.
 
+### Cross-Platform Builds
+
+This Dockerfile builds for the builder's platform by default. For other platforms, use Docker Buildx with QEMU emulation:
+
+```sh
+docker buildx create --use
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t phantun-runtime:multiarch --push .
+```
+
+For a single non-native platform without pushing:
+
+```sh
+docker buildx build --platform linux/arm64 \
+  -t phantun-runtime:arm64 --load .
+```
+
+Export a single-platform image as a tarball:
+
+```sh
+docker buildx build --platform linux/arm64 \
+  --output type=docker,dest=phantun-runtime-arm64.tar .
+```
+
+If you need true cross-compilation inside the builder (without QEMU), you must add the Rust target and system toolchain yourself (not configured by default).
+
 ## Versioning Policy
 
 Container versions reflect changes to the runtime wrapper only. All phantun functionality, parameters, and behavior are defined exclusively by upstream. Updating phantun parameters or features does not require changes to this container.
