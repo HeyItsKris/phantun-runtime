@@ -66,6 +66,77 @@ docker run --rm \
 
 The container requires access to /dev/net/tun and the NET_ADMIN Linux capability. It must not be run in privileged mode. The container does not modify sysctl parameters, routing tables, firewall rules, NAT configuration, or any other system-level networking state. All such configuration must be handled externally by the host system or platform administrator.
 
+## Linux Host Setup (iptables/nftables)
+
+Phantun is Linux-only. The host must configure forwarding and NAT rules; the container never changes host networking. The steps below are adapted from the upstream phantun guide: https://github.com/dndx/phantun#usage.
+
+### 1) Enable kernel IP forwarding
+
+```sh
+sudo sysctl -w net.ipv4.ip_forward=1
+```
+
+For IPv6:
+
+```sh
+sudo sysctl -w net.ipv6.conf.all.forwarding=1
+```
+
+### 2) Add required firewall/NAT rules
+
+Replace `TUN_IF`, `WAN_IF`, and ports to match your setup. If you set `IFACE_NAME`, use that value for `TUN_IF`. If you changed phantun's TUN IPs, update the DNAT targets accordingly.
+
+#### Client (SNAT/masquerade)
+
+**nftables**
+
+```sh
+TUN_IF=ptun0
+WAN_IF=eth0
+
+sudo nft add table inet nat
+sudo nft 'add chain inet nat postrouting { type nat hook postrouting priority srcnat; policy accept; }'
+sudo nft add rule inet nat postrouting iifname "$TUN_IF" oifname "$WAN_IF" masquerade
+```
+
+**iptables**
+
+```sh
+WAN_IF=eth0
+sudo iptables -t nat -A POSTROUTING -o "$WAN_IF" -j MASQUERADE
+sudo ip6tables -t nat -A POSTROUTING -o "$WAN_IF" -j MASQUERADE
+```
+
+#### Server (DNAT TCP listen port to TUN IP)
+
+Phantun server defaults to `192.168.201.2` and `fcc9::2` on the TUN side unless you change them via phantun options.
+
+**nftables**
+
+```sh
+WAN_IF=eth0
+PORT=4567
+
+sudo nft add table inet nat
+sudo nft 'add chain inet nat prerouting { type nat hook prerouting priority dstnat; policy accept; }'
+sudo nft add rule inet nat prerouting iifname "$WAN_IF" tcp dport "$PORT" dnat ip to 192.168.201.2
+sudo nft add rule inet nat prerouting iifname "$WAN_IF" tcp dport "$PORT" dnat ip6 to fcc9::2
+```
+
+**iptables**
+
+```sh
+WAN_IF=eth0
+PORT=4567
+
+sudo iptables -t nat -A PREROUTING -p tcp -i "$WAN_IF" --dport "$PORT" -j DNAT --to-destination 192.168.201.2
+sudo ip6tables -t nat -A PREROUTING -p tcp -i "$WAN_IF" --dport "$PORT" -j DNAT --to-destination fcc9::2
+```
+
+Notes:
+- If you do not need IPv6, omit the IPv6 rules.
+- If you manage firewalling via UFW/firewalld, integrate these rules there instead of using raw commands.
+
 ## Building the Image
 
 The image can be built locally using the standard Docker build process.

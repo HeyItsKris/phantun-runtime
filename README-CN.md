@@ -66,6 +66,77 @@ docker run --rm \
 
 容器仅需要访问 /dev/net/tun 并具备 NET_ADMIN 权限。容器不应以 privileged 模式运行。容器不会修改 sysctl 参数、路由表、防火墙规则、iptables 或 nftables 配置，也不会执行任何形式的 NAT。所有系统级网络策略必须由宿主系统或平台管理员显式配置。
 
+## Linux 宿主机配置（iptables/nftables）
+
+Phantun 仅支持 Linux。宿主机必须自行配置转发与 NAT 规则；容器不会修改宿主机网络。以下步骤基于上游 phantun 官方文档整理：https://github.com/dndx/phantun#usage。
+
+### 1) 启用内核转发
+
+```sh
+sudo sysctl -w net.ipv4.ip_forward=1
+```
+
+如需 IPv6：
+
+```sh
+sudo sysctl -w net.ipv6.conf.all.forwarding=1
+```
+
+### 2) 添加防火墙/NAT 规则
+
+将 `TUN_IF`、`WAN_IF` 和端口替换为你的实际配置。如果你设置了 `IFACE_NAME`，就用它作为 `TUN_IF`。如果你修改了 phantun 的 TUN 地址，请同步更新 DNAT 目标地址。
+
+#### 客户端（SNAT/masquerade）
+
+**nftables**
+
+```sh
+TUN_IF=ptun0
+WAN_IF=eth0
+
+sudo nft add table inet nat
+sudo nft 'add chain inet nat postrouting { type nat hook postrouting priority srcnat; policy accept; }'
+sudo nft add rule inet nat postrouting iifname "$TUN_IF" oifname "$WAN_IF" masquerade
+```
+
+**iptables**
+
+```sh
+WAN_IF=eth0
+sudo iptables -t nat -A POSTROUTING -o "$WAN_IF" -j MASQUERADE
+sudo ip6tables -t nat -A POSTROUTING -o "$WAN_IF" -j MASQUERADE
+```
+
+#### 服务端（DNAT TCP 监听端口到 TUN 地址）
+
+phantun 服务端默认使用 `192.168.201.2` 和 `fcc9::2` 作为 TUN 地址（如未在 phantun 参数中更改）。
+
+**nftables**
+
+```sh
+WAN_IF=eth0
+PORT=4567
+
+sudo nft add table inet nat
+sudo nft 'add chain inet nat prerouting { type nat hook prerouting priority dstnat; policy accept; }'
+sudo nft add rule inet nat prerouting iifname "$WAN_IF" tcp dport "$PORT" dnat ip to 192.168.201.2
+sudo nft add rule inet nat prerouting iifname "$WAN_IF" tcp dport "$PORT" dnat ip6 to fcc9::2
+```
+
+**iptables**
+
+```sh
+WAN_IF=eth0
+PORT=4567
+
+sudo iptables -t nat -A PREROUTING -p tcp -i "$WAN_IF" --dport "$PORT" -j DNAT --to-destination 192.168.201.2
+sudo ip6tables -t nat -A PREROUTING -p tcp -i "$WAN_IF" --dport "$PORT" -j DNAT --to-destination fcc9::2
+```
+
+说明：
+- 如果不需要 IPv6，请省略 IPv6 规则。
+- 若使用 UFW/firewalld 等上层防火墙，请在其配置中集成这些规则，避免直接使用底层命令。
+
 ## 构建镜像
 
 可以通过标准的 Docker 构建流程在本地构建镜像。
