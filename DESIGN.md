@@ -93,7 +93,7 @@ The container runtime recognizes exactly one control parameter for execution:
 
 - `MODE=client | server`
 
-All other arguments are passed verbatim to the underlying phantun binary. Optional interface-name handoff (via `IFACE_NAME`/`IFACE_FILE`) is out-of-band and does not alter phantun arguments.
+All other arguments are passed verbatim to the underlying phantun binary.
 
 This guarantees that:
 
@@ -103,22 +103,9 @@ This guarantees that:
 
 ---
 
-## 6. Interface Name Handoff (Optional)
+## 6. Security Model
 
-Some deployments need a stable, auditable way to learn the TUN interface name without parsing phantun parameters. To preserve the "no parameter interpretation" rule, the container supports a simple file handoff:
-
-- `IFACE_NAME` is provided externally (for example `ptun0`).
-- `IFACE_FILE` is a path mounted into the container.
-- If both are set, the container writes `IFACE_NAME` to `IFACE_FILE` before starting phantun.
-- If the file was written, it is cleared to an empty string on shutdown.
-- The container does not parse or validate phantun arguments, and it does not infer the interface name from them.
-- If `IFACE_FILE` is set but the write fails, the container exits with a clear error to avoid stale reads.
-
-This mechanism avoids any background helpers, polling, or netlink discovery.
-
-## 7. Security Model
-
-### 7.1 Container Privileges
+### 6.1 Container Privileges
 
 The container requires only:
 
@@ -133,7 +120,7 @@ No additional Linux capabilities are required or assumed.
 
 ---
 
-### 7.2 Predictability and Auditability
+### 6.2 Predictability and Auditability
 
 The runtime behavior is fully deterministic:
 
@@ -146,7 +133,7 @@ Every system-level effect is externally visible and externally controlled.
 
 ---
 
-## 8. Operational Rationale
+## 7. Operational Rationale
 
 This design intentionally prioritizes:
 
@@ -158,7 +145,7 @@ In infrastructure environments such as OpenWrt, Kubernetes, or hardened Linux ho
 
 ---
 
-## 9. Non-Goals
+## 8. Non-Goals
 
 This project explicitly does not aim to:
 
@@ -171,7 +158,7 @@ Those concerns are deliberately left to higher-level systems.
 
 ---
 
-## 10. Conclusion
+## 9. Conclusion
 
 phantun-runtime treats phantun as a **pure tunnel primitive** and the operating system as the **sole authority over networking policy**.
 

@@ -4,7 +4,7 @@ phantun-runtime 是一个仅用于运行官方 phantun 二进制程序的最小�
 
 ## 项目概述
 
-phantun-runtime 是围绕上游 phantun 二进制构建的轻量级执行封装。容器本身不修改系统配置、不管理网络策略，也不理解或重写 phantun 的参数，其唯一职责是根据明确指定的运行模式启动 phantun 程序，并可选地写入接口名文件以便审计。本项目适用于对可预测性、可审计性以及职责边界有严格要求的运行环境。
+phantun-runtime 是围绕上游 phantun 二进制构建的轻量级执行封装。容器本身不修改系统配置、不管理网络策略，也不理解或重写 phantun 的参数，其唯一职责是根据明确指定的运行模式启动 phantun 程序。本项目适用于对可预测性、可审计性以及职责边界有严格要求的运行环境。
 
 完整的设计理念与安全模型请参阅 DESIGN.md 与 DESIGN-CN.md。
 
@@ -14,7 +14,7 @@ phantun-runtime 是围绕上游 phantun 二进制构建的轻量级执行封装�
 
 ## 运行模式
 
-phantun-runtime 仅支持两种运行模式：client 与 server。运行模式通过环境变量 MODE 明确指定。容器不会解析、校验或修改 phantun 参数；接口名文件写入是独立的可选约定。
+phantun-runtime 仅支持两种运行模式：client 与 server。运行模式通过环境变量 MODE 明确指定。容器不会解析、校验或修改 phantun 参数。
 
 ## 使用方法
 
@@ -42,29 +42,6 @@ docker run --rm \
 
 所有参数都会不经任何处理直接转发给 phantun。
 
-## 接口名写入（可选）
-
-当外部自动化需要稳定、可审计地获取 TUN 接口名时，容器可以将接口名写入文件。
-
-- 设置 `IFACE_NAME` 为你计划使用的接口名（例如 `ptun0`）。
-- 设置 `IFACE_FILE` 为容器内路径（例如 `/run/phantun/iface`）。
-- 将宿主机文件映射到该路径（例如 `-v ./state/iface:/run/phantun/iface`）。
-
-容器会在启动 phantun 之前把 `IFACE_NAME` 写入 `IFACE_FILE`，文件内容仅包含接口名本身（不带结尾换行）。如果曾写入该文件，容器关闭时会将其清空为一个空字符串。容器不解析或校验 phantun 参数，你必须自行把同一个接口名通过 phantun 的参数传入。如果设置了 `IFACE_FILE` 但写入失败，容器会直接退出并输出明确错误，避免外部读取到旧值。
-
-文件写入示例：
-
-docker run --rm \
-  --network host \
-  --device /dev/net/tun \
-  --cap-add NET_ADMIN \
-  -e MODE=client \
-  -e IFACE_NAME=ptun0 \
-  -e IFACE_FILE=/run/phantun/iface \
-  -v "$(pwd)/state/iface:/run/phantun/iface" \
-  phantun-runtime \
-  <phantun 参数，需指定接口名为 ptun0>
-
 ## 权限与安全模型
 
 容器仅需要访问 /dev/net/tun 并具备 NET_ADMIN 权限。容器不应以 privileged 模式运行。容器不会修改 sysctl 参数、路由表、防火墙规则、iptables 或 nftables 配置，也不会执行任何形式的 NAT。所有系统级网络策略必须由宿主系统或平台管理员显式配置。
@@ -87,7 +64,7 @@ sudo sysctl -w net.ipv6.conf.all.forwarding=1
 
 ### 2) 添加防火墙/NAT 规则
 
-将 `TUN_IF`、`WAN_IF` 和端口替换为你的实际配置。如果你设置了 `IFACE_NAME`，就用它作为 `TUN_IF`。如果你修改了 phantun 的 TUN 地址，请同步更新 DNAT 目标地址。
+将 `TUN_IF`、`WAN_IF` 和端口替换为你的实际配置。如果你修改了 phantun 的 TUN 地址，请同步更新 DNAT 目标地址。
 
 #### 客户端（SNAT/masquerade）
 

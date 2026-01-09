@@ -4,7 +4,7 @@ A minimal, runtime-only container for executing official phantun binaries with s
 
 ## Overview
 
-phantun-runtime is a thin execution wrapper around upstream phantun binaries. The container itself does not modify system configuration, does not manage networking policy, and does not interpret phantun parameters. Its sole responsibility is to select execution mode and execute phantun as-is, with an optional interface-name handoff file for auditability. This project is designed for environments where predictability, auditability, and clear separation of responsibility are required.
+phantun-runtime is a thin execution wrapper around upstream phantun binaries. The container itself does not modify system configuration, does not manage networking policy, and does not interpret phantun parameters. Its sole responsibility is to select execution mode and execute phantun as-is. This project is designed for environments where predictability, auditability, and clear separation of responsibility are required.
 
 For detailed design rationale, see DESIGN.md and DESIGN-CN.md.
 
@@ -14,7 +14,7 @@ This project follows a small set of explicit principles: least responsibility, l
 
 ## Execution Mode
 
-phantun-runtime supports exactly two execution modes: client and server. The execution mode is selected via the MODE environment variable. No phantun parameters are interpreted, validated, or modified by the container; the optional interface-name file handoff is out-of-band.
+phantun-runtime supports exactly two execution modes: client and server. The execution mode is selected via the MODE environment variable. No phantun parameters are interpreted, validated, or modified by the container.
 
 ## Usage
 
@@ -42,29 +42,6 @@ docker run --rm \
 
 All arguments are forwarded unchanged to phantun.
 
-## Interface Name Handoff (Optional)
-
-When external automation needs a stable, auditable way to discover the TUN interface name, the container can write it to a file.
-
-- Set `IFACE_NAME` to the interface name you intend to use (for example `ptun0`).
-- Set `IFACE_FILE` to a path inside the container (for example `/run/phantun/iface`).
-- Mount a host file to that path (for example `-v ./state/iface:/run/phantun/iface`).
-
-The container writes `IFACE_NAME` to `IFACE_FILE` before launching phantun. The file content is just the interface name (no trailing newline). On shutdown, if the file was written, it is cleared to an empty string. The container does not parse or validate phantun arguments; you must also pass the same interface name to phantun via its own parameters. If `IFACE_FILE` is set but the write fails, the container exits with a clear error to prevent stale reads.
-
-Example with file handoff:
-
-docker run --rm \
-  --network host \
-  --device /dev/net/tun \
-  --cap-add NET_ADMIN \
-  -e MODE=client \
-  -e IFACE_NAME=ptun0 \
-  -e IFACE_FILE=/run/phantun/iface \
-  -v "$(pwd)/state/iface:/run/phantun/iface" \
-  phantun-runtime \
-  <phantun arguments that set the interface name to ptun0>
-
 ## Permissions and Security
 
 The container requires access to /dev/net/tun and the NET_ADMIN Linux capability. It must not be run in privileged mode. The container does not modify sysctl parameters, routing tables, firewall rules, NAT configuration, or any other system-level networking state. All such configuration must be handled externally by the host system or platform administrator.
@@ -87,7 +64,7 @@ sudo sysctl -w net.ipv6.conf.all.forwarding=1
 
 ### 2) Add required firewall/NAT rules
 
-Replace `TUN_IF`, `WAN_IF`, and ports to match your setup. If you set `IFACE_NAME`, use that value for `TUN_IF`. If you changed phantun's TUN IPs, update the DNAT targets accordingly.
+Replace `TUN_IF`, `WAN_IF`, and ports to match your setup. If you changed phantun's TUN IPs, update the DNAT targets accordingly.
 
 #### Client (SNAT/masquerade)
 
