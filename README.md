@@ -20,23 +20,25 @@ phantun-runtime supports exactly two execution modes: client and server. The exe
 
 The container must be provided access to a TUN device and the NET_ADMIN capability. All runtime parameters are passed verbatim to the upstream phantun binary.
 
-Client mode example:
+Client mode example (detached):
 
-docker run --rm \
+docker run -d --name phantun-client --restart unless-stopped \
   --network host \
   --device /dev/net/tun \
   --cap-add NET_ADMIN \
   -e MODE=client \
+  -e RUST_LOG=info \
   phantun-runtime \
   <phantun client arguments>
 
-Server mode example:
+Server mode example (detached):
 
-docker run --rm \
+docker run -d --name phantun-server --restart unless-stopped \
   --network host \
   --device /dev/net/tun \
   --cap-add NET_ADMIN \
   -e MODE=server \
+  -e RUST_LOG=info \
   phantun-runtime \
   <phantun server arguments>
 

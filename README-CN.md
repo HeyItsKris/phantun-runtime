@@ -20,23 +20,25 @@ phantun-runtime 仅支持两种运行模式：client 与 server。运行模式�
 
 运行容器时必须提供 TUN 设备访问权限以及 NET_ADMIN capability。所有运行参数都会被完整、原样地传递给上游 phantun 程序。
 
-客户端模式示例：
+客户端模式示例（后台运行）：
 
-docker run --rm \
+docker run -d --name phantun-client --restart unless-stopped \
   --network host \
   --device /dev/net/tun \
   --cap-add NET_ADMIN \
   -e MODE=client \
+  -e RUST_LOG=info \
   phantun-runtime \
   <phantun 客户端参数>
 
-服务端模式示例：
+服务端模式示例（后台运行）：
 
-docker run --rm \
+docker run -d --name phantun-server --restart unless-stopped \
   --network host \
   --device /dev/net/tun \
   --cap-add NET_ADMIN \
   -e MODE=server \
+  -e RUST_LOG=info \
   phantun-runtime \
   <phantun 服务端参数>
 

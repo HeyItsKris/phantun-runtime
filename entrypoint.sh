@@ -11,26 +11,29 @@ Usage:
     --device /dev/net/tun \
     --cap-add NET_ADMIN \
     -e MODE=client|server \
+    -e RUST_LOG=info \
     phantun-runtime \
     <phantun arguments>
 
 Examples:
 
   Client mode:
-    docker run --rm \
+    docker run -d --name phantun-client --restart unless-stopped \
       --network host \
       --device /dev/net/tun \
       --cap-add NET_ADMIN \
       -e MODE=client \
+      -e RUST_LOG=info \
       phantun-runtime \
       --local 127.0.0.1:1234 --remote 10.0.0.1:4567
 
   Server mode:
-    docker run --rm \
+    docker run -d --name phantun-server --restart unless-stopped \
       --network host \
       --device /dev/net/tun \
       --cap-add NET_ADMIN \
       -e MODE=server \
+      -e RUST_LOG=info \
       phantun-runtime \
       --local 4567 --remote 127.0.0.1:1234
 
