@@ -127,6 +127,8 @@ The container requires only:
 
 The container must not be run in `--privileged` mode.
 
+For host-side firewall/NAT configuration, the container should run with `--network host` so the TUN interface is created in the host network namespace.
+
 No additional Linux capabilities are required or assumed.
 
 ---

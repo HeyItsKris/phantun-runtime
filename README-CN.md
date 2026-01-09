@@ -23,22 +23,24 @@ phantun-runtime 仅支持两种运行模式：client 与 server。运行模式�
 客户端模式示例：
 
 docker run --rm \
+  --network host \
   --device /dev/net/tun \
   --cap-add NET_ADMIN \
   -e MODE=client \
   phantun-runtime \
-  -- <phantun 客户端参数>
+  <phantun 客户端参数>
 
 服务端模式示例：
 
 docker run --rm \
+  --network host \
   --device /dev/net/tun \
   --cap-add NET_ADMIN \
   -e MODE=server \
   phantun-runtime \
-  -- <phantun 服务端参数>
+  <phantun 服务端参数>
 
-双横线之后的所有参数都会不经任何处理直接转发给 phantun。
+所有参数都会不经任何处理直接转发给 phantun。
 
 ## 接口名写入（可选）
 
@@ -53,6 +55,7 @@ docker run --rm \
 文件写入示例：
 
 docker run --rm \
+  --network host \
   --device /dev/net/tun \
   --cap-add NET_ADMIN \
   -e MODE=client \
@@ -60,7 +63,7 @@ docker run --rm \
   -e IFACE_FILE=/run/phantun/iface \
   -v "$(pwd)/state/iface:/run/phantun/iface" \
   phantun-runtime \
-  -- <phantun 参数，需指定接口名为 ptun0>
+  <phantun 参数，需指定接口名为 ptun0>
 
 ## 权限与安全模型
 
@@ -68,7 +71,7 @@ docker run --rm \
 
 ## Linux 宿主机配置（iptables/nftables）
 
-Phantun 仅支持 Linux。宿主机必须自行配置转发与 NAT 规则；容器不会修改宿主机网络。以下步骤基于上游 phantun 官方文档整理：https://github.com/dndx/phantun#usage。
+Phantun 仅支持 Linux。建议使用 `--network host` 运行容器，以便 TUN 接口出现在宿主机网络命名空间中并由宿主机配置防火墙/NAT。容器不会修改宿主机网络。以下步骤基于上游 phantun 官方文档整理：https://github.com/dndx/phantun#usage。
 
 ### 1) 启用内核转发
 

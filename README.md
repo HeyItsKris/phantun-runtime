@@ -23,22 +23,24 @@ The container must be provided access to a TUN device and the NET_ADMIN capabili
 Client mode example:
 
 docker run --rm \
+  --network host \
   --device /dev/net/tun \
   --cap-add NET_ADMIN \
   -e MODE=client \
   phantun-runtime \
-  -- <phantun client arguments>
+  <phantun client arguments>
 
 Server mode example:
 
 docker run --rm \
+  --network host \
   --device /dev/net/tun \
   --cap-add NET_ADMIN \
   -e MODE=server \
   phantun-runtime \
-  -- <phantun server arguments>
+  <phantun server arguments>
 
-All arguments after the double dash are forwarded unchanged to phantun.
+All arguments are forwarded unchanged to phantun.
 
 ## Interface Name Handoff (Optional)
 
@@ -53,6 +55,7 @@ The container writes `IFACE_NAME` to `IFACE_FILE` before launching phantun. The 
 Example with file handoff:
 
 docker run --rm \
+  --network host \
   --device /dev/net/tun \
   --cap-add NET_ADMIN \
   -e MODE=client \
@@ -60,7 +63,7 @@ docker run --rm \
   -e IFACE_FILE=/run/phantun/iface \
   -v "$(pwd)/state/iface:/run/phantun/iface" \
   phantun-runtime \
-  -- <phantun arguments that set the interface name to ptun0>
+  <phantun arguments that set the interface name to ptun0>
 
 ## Permissions and Security
 
@@ -68,7 +71,7 @@ The container requires access to /dev/net/tun and the NET_ADMIN Linux capability
 
 ## Linux Host Setup (iptables/nftables)
 
-Phantun is Linux-only. The host must configure forwarding and NAT rules; the container never changes host networking. The steps below are adapted from the upstream phantun guide: https://github.com/dndx/phantun#usage.
+Phantun is Linux-only. Run the container with `--network host` so the TUN interface exists in the host namespace where firewall/NAT rules are applied. The container never changes host networking. The steps below are adapted from the upstream phantun guide: https://github.com/dndx/phantun#usage.
 
 ### 1) Enable kernel IP forwarding
 

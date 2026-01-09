@@ -33,33 +33,36 @@ usage() {
   cat >&2 <<'EOF'
 Usage:
   docker run [docker options] \
+    --network host \
     --device /dev/net/tun \
     --cap-add NET_ADMIN \
     -e MODE=client|server \
     phantun-runtime \
-    -- <phantun arguments>
+    <phantun arguments>
 
 Examples:
 
   Client mode:
     docker run --rm \
+      --network host \
       --device /dev/net/tun \
       --cap-add NET_ADMIN \
       -e MODE=client \
       phantun-runtime \
-      -- --local 127.0.0.1:1234 --remote 10.0.0.1:4567
+      --local 127.0.0.1:1234 --remote 10.0.0.1:4567
 
   Server mode:
     docker run --rm \
+      --network host \
       --device /dev/net/tun \
       --cap-add NET_ADMIN \
       -e MODE=server \
       phantun-runtime \
-      -- --local 4567 --remote 127.0.0.1:1234
+      --local 4567 --remote 127.0.0.1:1234
 
 Notes:
   - The container only interprets MODE.
-  - All args after '--' are passed verbatim to phantun.
+  - All args are passed verbatim to phantun.
   - If IFACE_NAME and IFACE_FILE are set, IFACE_NAME is written to IFACE_FILE.
   - If IFACE_FILE was written, it is cleared (emptied) on shutdown.
   - The container does not validate or synchronize phantun parameters.
