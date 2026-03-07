@@ -1,10 +1,10 @@
 # phantun-runtime
 
-phantun-runtime 是一个仅用于运行官方 phantun 二进制程序的最小化运行时容器，严格遵守最小职责与最小权限原则。
+phantun-runtime 是一个仅用于运行选定源码仓库中 phantun 二进制程序的最小化运行时容器，严格遵守最小职责与最小权限原则。
 
 ## 项目概述
 
-phantun-runtime 是围绕上游 phantun 二进制构建的轻量级执行封装。容器本身不修改系统配置、不管理网络策略，也不理解或重写 phantun 的参数，其唯一职责是根据明确指定的运行模式启动 phantun 程序。本项目适用于对可预测性、可审计性以及职责边界有严格要求的运行环境。
+phantun-runtime 是围绕 phantun 二进制构建的轻量级执行封装。容器本身不修改系统配置、不管理网络策略，也不理解或重写 phantun 的参数，其唯一职责是根据明确指定的运行模式启动 phantun 程序。本项目适用于对可预测性、可审计性以及职责边界有严格要求的运行环境。
 
 完整的设计理念与安全模型请参阅 DESIGN.md 与 DESIGN-CN.md。
 
@@ -18,13 +18,14 @@ phantun-runtime 仅支持两种运行模式：client 与 server。运行模式�
 
 ## 使用方法
 
-运行容器时必须提供 TUN 设备访问权限以及 NET_ADMIN capability。所有运行参数都会被完整、原样地传递给上游 phantun 程序。
+运行容器时必须提供 TUN 设备访问权限以及最小能力集（`--cap-drop ALL --cap-add NET_ADMIN`）。所有运行参数都会被完整、原样地传递给 phantun 程序。
 
 客户端模式示例（后台运行）：
 
 docker run -d --name phantun-client --restart unless-stopped \
   --network host \
   --device /dev/net/tun \
+  --cap-drop ALL \
   --cap-add NET_ADMIN \
   -e MODE=client \
   -e RUST_LOG=info \
@@ -36,6 +37,7 @@ docker run -d --name phantun-client --restart unless-stopped \
 docker run -d --name phantun-server --restart unless-stopped \
   --network host \
   --device /dev/net/tun \
+  --cap-drop ALL \
   --cap-add NET_ADMIN \
   -e MODE=server \
   -e RUST_LOG=info \
@@ -44,13 +46,56 @@ docker run -d --name phantun-server --restart unless-stopped \
 
 所有参数都会不经任何处理直接转发给 phantun。
 
+## 可选控制面参数透传
+
+如果你的 phantun 构建支持控制面参数（例如 `--control-target`），直接按普通 phantun 参数传入即可。容器不会解析、校验或同步任何控制面行为。
+
+示例（服务端 + UDS 目标）：
+
+```sh
+docker run -d --name phantun-server --restart unless-stopped \
+  --network host \
+  --device /dev/net/tun \
+  --cap-drop ALL \
+  --cap-add NET_ADMIN \
+  -e MODE=server \
+  -e RUST_LOG=info \
+  -v /run/phantun-cp:/run/phantun-cp \
+  phantun-runtime \
+  --local 4567 --remote 127.0.0.1:1234 --tun ptun0 \
+  --control-target /run/phantun-cp/agent.sock
+```
+
+说明：
+- 请先启动控制面 consumer，再启动容器。
+- 传给 phantun 的 UDS 路径必须在容器命名空间中可见（通常通过 bind mount 提供）。
+
+## 停止语义
+
+`docker stop` 会先发送 `SIGTERM`，超时后再发送 `SIGKILL`。如果你的 phantun 构建使用了控制面的优雅关闭流程，请给容器足够的停止超时时间，避免被强杀中断。
+
+建议：
+
+```sh
+docker run -d --name phantun-server --restart unless-stopped \
+  --stop-timeout 5 \
+  --network host \
+  --device /dev/net/tun \
+  --cap-drop ALL \
+  --cap-add NET_ADMIN \
+  -e MODE=server \
+  -e RUST_LOG=info \
+  phantun-runtime \
+  <phantun 服务端参数>
+```
+
 ## 权限与安全模型
 
-容器仅需要访问 /dev/net/tun 并具备 NET_ADMIN 权限。容器不应以 privileged 模式运行。容器不会修改 sysctl 参数、路由表、防火墙规则、iptables 或 nftables 配置，也不会执行任何形式的 NAT。所有系统级网络策略必须由宿主系统或平台管理员显式配置。
+容器仅需要访问 /dev/net/tun 并具备 NET_ADMIN 权限。建议使用 `--cap-drop ALL --cap-add NET_ADMIN` 运行，且不应以 privileged 模式运行。容器不会修改 sysctl 参数、路由表、防火墙规则、iptables 或 nftables 配置，也不会执行任何形式的 NAT。所有系统级网络策略必须由宿主系统或平台管理员显式配置。
 
 ## Linux 宿主机配置（iptables/nftables）
 
-Phantun 仅支持 Linux。建议使用 `--network host` 运行容器，以便 TUN 接口出现在宿主机网络命名空间中并由宿主机配置防火墙/NAT。容器不会修改宿主机网络。以下步骤基于上游 phantun 官方文档整理：https://github.com/dndx/phantun#usage。
+Phantun 仅支持 Linux。建议使用 `--network host` 运行容器，以便 TUN 接口出现在宿主机网络命名空间中并由宿主机配置防火墙/NAT。容器不会修改宿主机网络。以下步骤基于默认源码仓库中的 phantun 文档整理：https://github.com/HeyItsKris/phantun#usage。
 
 ### 1) 启用内核转发
 
@@ -125,7 +170,7 @@ sudo ip6tables -t nat -A PREROUTING -p tcp -i "$WAN_IF" --dport "$PORT" -j DNAT 
 
 docker build -t phantun-runtime .
 
-默认构建方式为开发友好的 `git clone` + `cargo build`，拉取上游默认分支的最新提交。供应链校验为可选项：当提供 `PHANTUN_TARBALL_SHA256` 时，构建会下载源码压缩包并校验 SHA256；若同时提供 `PHANTUN_COMMIT`，则使用该提交；否则使用默认分支当前 HEAD。
+默认构建方式为开发友好的 `git clone` + `cargo build`，拉取默认源码仓库（`PHANTUN_OWNER=HeyItsKris`，`PHANTUN_REPO=phantun`）默认分支的最新提交。供应链校验为可选项：当提供 `PHANTUN_TARBALL_SHA256` 时，构建会下载源码压缩包并校验 SHA256；若同时提供 `PHANTUN_COMMIT`，则使用该提交；否则使用默认分支当前 HEAD。
 
 ### 构建教程（更详细）
 
@@ -146,9 +191,9 @@ docker build \
 启用 tarball 校验的构建：
 
 ```sh
-git ls-remote https://github.com/dndx/phantun HEAD
+git ls-remote https://github.com/HeyItsKris/phantun HEAD
 curl -fsSL -o phantun.tar.gz \
-  https://github.com/dndx/phantun/archive/<commit>.tar.gz
+  https://github.com/HeyItsKris/phantun/archive/<commit>.tar.gz
 sha256sum phantun.tar.gz
 ```
 
@@ -161,7 +206,7 @@ docker build \
 
 说明：
 - 若只设置 `PHANTUN_TARBALL_SHA256` 未设置 `PHANTUN_COMMIT`，构建时会解析默认分支的当前 HEAD。为避免漂移，建议同时提供两者。
-- 如需从 fork 构建，可通过 `PHANTUN_OWNER` 和 `PHANTUN_REPO` 覆盖上游来源。
+- 如需切换源码来源，可通过 `PHANTUN_OWNER` 和 `PHANTUN_REPO` 覆盖默认仓库。
 
 ### 跨平台构建
 
@@ -191,12 +236,12 @@ docker buildx build --platform linux/arm64 \
 
 ## 版本策略
 
-容器版本仅反映运行时封装层的变化。phantun 的功能、参数和行为完全由上游定义。上游参数变更不会要求修改本容器实现。
+容器版本仅反映运行时封装层的变化。phantun 的功能、参数和行为完全由选定源码仓库定义。上游参数变更不会要求修改本容器实现。
 
 ## 范围与非目标
 
 本项目不试图简化 phantun 的使用流程，不提供编排或管理能力，也不作为 VPN 管理工具，更不会引入自动化或隐式默认行为。这些需求应由更高层系统负责。
 
-## 许可与上游关系
+## 许可与源码来源
 
-phantun-runtime 不修改、不 fork phantun 源码。所有与 phantun 相关的功能与行为均遵循其原始上游许可与归属。
+phantun-runtime 不对 phantun 源码打补丁。所有与 phantun 相关的功能与行为均遵循源码仓库原始许可与归属。

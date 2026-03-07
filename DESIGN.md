@@ -7,8 +7,8 @@ While phantun itself is intentionally minimal and low-level, many existing deplo
 
 This project, **phantun-runtime**, exists to explicitly define and enforce that boundary.
 
-phantun-runtime is **not** a fork of phantun, **not** a feature extension, and **not** an orchestration layer.  
-It is a strictly minimal runtime container whose sole purpose is to execute official phantun binaries under a clearly defined security and responsibility model.
+phantun-runtime is **not** a phantun feature extension and **not** an orchestration layer.  
+It is a strictly minimal runtime container whose sole purpose is to execute phantun binaries under a clearly defined security and responsibility model.
 
 ---
 
@@ -18,7 +18,7 @@ The primary design goals of this project are:
 
 - Enforce **least responsibility**
 - Enforce **least privilege**
-- Preserve **full upstream compatibility**
+- Preserve **full phantun compatibility**
 - Maintain **long-term operational stability**
 - Avoid hidden or implicit system-side behavior
 
@@ -33,9 +33,9 @@ The container must behave as a transparent execution shell, not an opinionated p
 phantun-runtime is responsible for:
 
 - Selecting execution mode (`client` or `server`) explicitly via a single environment variable
-- Executing the corresponding official phantun binary
+- Executing the corresponding phantun binary
 - Passing all runtime parameters verbatim to phantun
-- Running as PID 1 and forwarding signals correctly
+- Running phantun as PID 1 so signals are delivered directly
 - Operating with minimal container capabilities required for TUN usage
 
 ---
@@ -61,27 +61,29 @@ All system-level networking policy is considered the responsibility of the host 
 
 This project intentionally separates **build responsibility** from **runtime responsibility**.
 
-- phantun upstream is the single source of truth for:
+- The selected phantun source repository is the single source of truth for:
   - Source code
   - Build logic
   - Binary behavior
 
-- phantun-runtime only consumes official build artifacts
-- No patches, forks, or behavioral changes are introduced
+- phantun-runtime only builds and runs binaries from that source
+- No source patches or behavioral changes are introduced by this runtime project
 
 This separation ensures:
 
-- Zero behavioral drift from upstream
+- Zero behavioral drift from the selected source
 - Simplified upgrades when phantun releases new versions
 - Clear auditability of responsibility
 
 ### 4.1 Build Inputs and Optional Verification
 
-The build process consumes upstream source without modification:
+The build process consumes source without modification:
 
-- Default behavior is a dev-friendly `git clone` of the upstream default branch.
+- Default behavior is a dev-friendly `git clone` of the configured default source repository and branch.
 - If `PHANTUN_COMMIT` is provided, that commit is checked out.
 - If `PHANTUN_TARBALL_SHA256` is provided, the build downloads the tarball for the resolved commit (or default-branch HEAD), verifies the SHA256, and builds from that verified source.
+
+Default source repository values are configured in the Dockerfile (`PHANTUN_OWNER`, `PHANTUN_REPO`) and can be overridden at build time.
 
 Verification is opt-in to keep the default workflow lightweight, while allowing deterministic, auditable builds when needed.
 
@@ -98,7 +100,7 @@ All other arguments are passed verbatim to the underlying phantun binary.
 This guarantees that:
 
 - New phantun parameters require **no container changes**
-- Existing deployments do not break on upstream updates
+- Existing deployments do not break on source updates
 - The container never becomes a compatibility bottleneck
 
 ---
@@ -111,6 +113,10 @@ The container requires only:
 
 - Access to `/dev/net/tun`
 - Capability: `NET_ADMIN`
+
+Recommended runtime flags:
+
+- `--cap-drop ALL --cap-add NET_ADMIN`
 
 The container must not be run in `--privileged` mode.
 

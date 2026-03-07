@@ -18,7 +18,7 @@
 ############################
 FROM rust:latest AS builder
 
-ARG PHANTUN_OWNER=dndx
+ARG PHANTUN_OWNER=HeyItsKris
 ARG PHANTUN_REPO=phantun
 
 ARG PHANTUN_COMMIT

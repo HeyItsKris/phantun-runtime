@@ -9,6 +9,7 @@ Usage:
   docker run [docker options] \
     --network host \
     --device /dev/net/tun \
+    --cap-drop ALL \
     --cap-add NET_ADMIN \
     -e MODE=client|server \
     -e RUST_LOG=info \
@@ -21,6 +22,7 @@ Examples:
     docker run -d --name phantun-client --restart unless-stopped \
       --network host \
       --device /dev/net/tun \
+      --cap-drop ALL \
       --cap-add NET_ADMIN \
       -e MODE=client \
       -e RUST_LOG=info \
@@ -31,6 +33,7 @@ Examples:
     docker run -d --name phantun-server --restart unless-stopped \
       --network host \
       --device /dev/net/tun \
+      --cap-drop ALL \
       --cap-add NET_ADMIN \
       -e MODE=server \
       -e RUST_LOG=info \

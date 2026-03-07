@@ -8,7 +8,7 @@ phantun 是一个专注于在复杂网络环境下进行高可靠数据传输的
 
 **phantun-runtime** 项目的存在目的，正是为了明确并强制执行这一边界。
 
-phantun-runtime 不是 phantun 的 fork，不是功能扩展，也不是管理或编排系统，而是一个严格最小化的运行时容器，其唯一职责是：在一个清晰、安全、可审计的边界内运行官方 phantun 二进制程序。
+phantun-runtime 不是 phantun 的功能扩展，也不是管理或编排系统，而是一个严格最小化的运行时容器，其唯一职责是：在一个清晰、安全、可审计的边界内运行 phantun 二进制程序。
 
 ---
 
@@ -18,7 +18,7 @@ phantun-runtime 不是 phantun 的 fork，不是功能扩展，也不是管理�
 
 - 遵循最小职责原则（Least Responsibility）
 - 遵循最小权限原则（Least Privilege）
-- 保持与上游 phantun 的完全兼容
+- 保持与 phantun 的完全兼容
 - 确保长期运行与运维稳定性
 - 避免任何隐式或不可审计的系统行为
 
@@ -33,9 +33,9 @@ phantun-runtime 不是 phantun 的 fork，不是功能扩展，也不是管理�
 phantun-runtime 仅负责以下事项：
 
 - 通过单一环境变量明确选择运行模式（client 或 server）
-- 执行对应的官方 phantun 二进制文件
+- 执行对应的 phantun 二进制文件
 - 将所有运行参数原样透传给 phantun
-- 作为 PID 1 正确接收并转发系统信号
+- 让 phantun 以 PID 1 运行，从而直接接收系统信号
 - 在最小权限条件下使用 TUN 虚拟网卡
 
 ---
@@ -61,27 +61,29 @@ phantun-runtime 明确 **不做** 以下任何事情：
 
 本项目刻意将“构建责任”与“运行责任”分离。
 
-- phantun 官方仓库是以下内容的唯一权威来源：
+- 选定的 phantun 源码仓库是以下内容的唯一权威来源：
   - 源代码
   - 构建逻辑
   - 二进制行为
 
-- phantun-runtime 仅消费官方构建产物
-- 不引入任何补丁、fork 或行为修改
+- phantun-runtime 仅从该源码构建并运行二进制
+- 本运行时项目不引入源码补丁或行为修改
 
 这种分离带来的好处包括：
 
-- 避免上游行为漂移
+- 避免与选定源码行为漂移
 - 简化版本升级流程
 - 提供清晰可审计的责任归属
 
 ### 4.1 构建输入与可选校验
 
-构建过程仅消费上游源码，不做任何修改：
+构建过程仅消费源码，不做任何修改：
 
-- 默认行为是对上游默认分支执行 `git clone`。
+- 默认行为是对已配置的默认源码仓库/分支执行 `git clone`。
 - 若提供 `PHANTUN_COMMIT`，则检出该提交。
 - 若提供 `PHANTUN_TARBALL_SHA256`，构建会下载对应提交（或默认分支 HEAD）的源码压缩包并校验 SHA256，然后基于校验后的源码构建。
+
+默认源码仓库由 Dockerfile 中的 `PHANTUN_OWNER`、`PHANTUN_REPO` 定义，也可在构建时覆盖。
 
 校验为可选项：默认保持轻量、开发友好的构建流程；需要可审计、可复现构建时可显式启用校验。
 
@@ -99,7 +101,7 @@ phantun-runtime 明确 **不做** 以下任何事情：
 
 - phantun 新增参数时无需修改容器
 - 容器永远不会成为兼容性瓶颈
-- 参数语义始终由 phantun 官方定义
+- 参数语义始终由 phantun 源码仓库定义
 
 ---
 
@@ -111,6 +113,10 @@ phantun-runtime 明确 **不做** 以下任何事情：
 
 - 访问 `/dev/net/tun`
 - Linux capability：`NET_ADMIN`
+
+推荐运行参数：
+
+- `--cap-drop ALL --cap-add NET_ADMIN`
 
 容器 **不应** 使用 `--privileged` 模式运行。
 
